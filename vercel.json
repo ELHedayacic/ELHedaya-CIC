@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/gallery",
+      "destination": "/"
+    },
+    {
+      "source": "/school-gallery-admin",
+      "destination": "/"
+    }
+  ]
+}
