@@ -9,13 +9,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.56.0",
     "@vitejs/plugin-react": "^5.0.4",
-    "vite": "^7.1.5",
-    "typescript": "~5.8.3",
+    "lucide-react": "^0.468.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "lucide-react": "^0.468.0",
-    "@supabase/supabase-js": "^2.56.0"
+    "typescript": "~5.8.3",
+    "vite": "^7.1.5"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3"
+  }
 }
