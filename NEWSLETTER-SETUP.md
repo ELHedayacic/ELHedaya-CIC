@@ -136,3 +136,7 @@ Every subscriber is sent an individual SMTP message. The implementation does not
 ## Delivery scale
 
 Hostinger's mailbox sending limits and anti-spam policies still apply. This implementation intentionally sends only a few messages concurrently. For a normal Sunday-school/community mailing list this is appropriate; if the list grows significantly, move delivery to a dedicated bulk-email provider or queue without changing the subscriber database/admin UI.
+
+## V10 flyer attachment upgrade
+
+For optional PDF/image flyer attachments, run `supabase/newsletter-flyer-attachments.sql` once and copy the V10 files into the project. See `NEWSLETTER-FLYER-SETUP.md` for details.

@@ -7,6 +7,14 @@ const MAX_HEADLINE = 120;
 const MAX_BODY = 12000;
 const MAX_CTA_LABEL = 50;
 const MAX_CTA_URL = 1000;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
 const SEND_CONCURRENCY = 3;
 
 export default async function handler(req, res) {
@@ -26,6 +34,7 @@ export default async function handler(req, res) {
     const newsletterFrom = process.env.NEWSLETTER_FROM || `EL Hedaya Islamic School <${smtpUser || "newsletter@elhedaya-cic.com"}>`;
     const replyTo = process.env.NEWSLETTER_REPLY_TO || smtpUser;
     const publicSiteUrl = (process.env.PUBLIC_SITE_URL || "https://elhedaya-cic.com").replace(/\/$/, "");
+    const attachmentBucket = process.env.NEWSLETTER_ATTACHMENT_BUCKET || "newsletter-attachments";
 
     if (!supabaseUrl || !anonKey || !serviceRoleKey) {
       throw new Error("Supabase server environment variables are incomplete.");
@@ -62,6 +71,7 @@ export default async function handler(req, res) {
     const ctaUrl = clean(payload.ctaUrl, MAX_CTA_URL);
     const isTest = Boolean(payload.testEmail);
     const testEmail = isTest ? String(user.email || "").trim().toLowerCase() : "";
+    const attachmentMeta = validateAttachment(payload.attachment, user.id);
 
     if (!subject || !headline || !body) {
       return res.status(400).json({ ok: false, message: "Subject, headline, and message are required." });
@@ -76,6 +86,23 @@ export default async function handler(req, res) {
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+
+    let mailAttachments = [];
+    if (attachmentMeta) {
+      const { data: flyerBlob, error: flyerError } = await admin.storage
+        .from(attachmentBucket)
+        .download(attachmentMeta.path);
+      if (flyerError) throw new Error(`Flyer attachment could not be loaded: ${flyerError.message}`);
+      const flyerBuffer = Buffer.from(await flyerBlob.arrayBuffer());
+      if (flyerBuffer.length > MAX_ATTACHMENT_BYTES) {
+        throw new Error("Flyer attachment is larger than the 10 MB limit.");
+      }
+      mailAttachments = [{
+        filename: attachmentMeta.name,
+        content: flyerBuffer,
+        contentType: attachmentMeta.contentType,
+      }];
+    }
 
     let recipients = [];
     if (isTest) {
@@ -105,6 +132,7 @@ export default async function handler(req, res) {
           body,
           cta_label: ctaLabel || null,
           cta_url: ctaUrl || null,
+          attachment_name: attachmentMeta?.name || null,
           status: "sending",
           created_by: user.id,
         })
@@ -167,6 +195,7 @@ export default async function handler(req, res) {
             headers: unsubscribeUrl
               ? { "List-Unsubscribe": `<${unsubscribeUrl}>` }
               : undefined,
+            attachments: mailAttachments,
           });
 
           if (!info.accepted?.length) {
@@ -185,6 +214,13 @@ export default async function handler(req, res) {
     }
 
     transporter.close();
+
+    if (!isTest && attachmentMeta && sentCount > 0) {
+      const { error: cleanupError } = await admin.storage
+        .from(attachmentBucket)
+        .remove([attachmentMeta.path]);
+      if (cleanupError) console.error("Newsletter flyer cleanup failed:", cleanupError);
+    }
 
     if (campaignId) {
       const status = sentCount && !failedCount ? "sent" : sentCount ? "partial" : "failed";
@@ -217,6 +253,23 @@ export default async function handler(req, res) {
       message: error instanceof Error ? error.message : "Newsletter send failed.",
     });
   }
+}
+
+function validateAttachment(value, userId) {
+  if (!value) return null;
+  if (!value || typeof value !== "object") throw new Error("Flyer attachment details are invalid.");
+
+  const path = clean(value.path, 700);
+  const name = clean(value.name, 180);
+  const contentType = clean(value.contentType, 100).toLowerCase();
+  const size = Number(value.size || 0);
+
+  if (!path || !name || !contentType) throw new Error("Flyer attachment details are incomplete.");
+  if (!path.startsWith(`${userId}/`) || path.includes("..")) throw new Error("Flyer attachment path is not allowed.");
+  if (!ALLOWED_ATTACHMENT_TYPES.has(contentType)) throw new Error("Flyers must be PDF, JPG, PNG, WEBP, or GIF files.");
+  if (!Number.isFinite(size) || size <= 0 || size > MAX_ATTACHMENT_BYTES) throw new Error("Flyer attachment must be 10 MB or smaller.");
+
+  return { path, name, contentType, size };
 }
 
 function parseBody(value) {

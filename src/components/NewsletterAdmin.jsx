@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Eye,
@@ -6,16 +6,22 @@ import {
   History,
   Loader2,
   Mail,
+  Paperclip,
+  FileText,
   RefreshCw,
   Search,
   Send,
+  Trash2,
+  UploadCloud,
   Users,
 } from "lucide-react";
 import {
+  deleteNewsletterAttachment,
   listNewsletterCampaigns,
   listNewsletterSubscribers,
   sendNewsletter,
   setNewsletterSubscriberActive,
+  uploadNewsletterAttachment,
 } from "../services/newsletterService";
 
 const EMPTY_DRAFT = {
@@ -36,6 +42,10 @@ export default function NewsletterAdmin({ session, localPreview, onLogout }) {
   const [sending, setSending] = useState("");
   const [updatingId, setUpdatingId] = useState("");
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [attachment, setAttachment] = useState(null);
+  const [attachmentUploading, setAttachmentUploading] = useState(false);
+  const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState("");
+  const flyerInputRef = useRef(null);
 
   const load = async () => {
     if (localPreview) {
@@ -61,6 +71,10 @@ export default function NewsletterAdmin({ session, localPreview, onLogout }) {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => () => {
+    if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+  }, [attachmentPreviewUrl]);
+
   const activeSubscribers = subscribers.filter((item) => item.is_active);
   const filteredSubscribers = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -69,6 +83,46 @@ export default function NewsletterAdmin({ session, localPreview, onLogout }) {
   }, [query, subscribers]);
 
   const updateDraft = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
+
+  const chooseFlyer = async (file) => {
+    if (!file) return;
+    setMessage({ type: "", text: "" });
+    if (localPreview) {
+      setMessage({ type: "error", text: "Flyer uploads require the production Supabase setup." });
+      return;
+    }
+
+    setAttachmentUploading(true);
+    try {
+      const uploaded = await uploadNewsletterAttachment(file, session.user?.id);
+      if (attachment?.path) {
+        try { await deleteNewsletterAttachment(attachment.path); } catch { /* keep the newly uploaded flyer */ }
+      }
+      if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+      setAttachment(uploaded);
+      setAttachmentPreviewUrl(file.type.startsWith("image/") ? URL.createObjectURL(file) : "");
+      setMessage({ type: "success", text: `${file.name} is attached and ready to send.` });
+    } catch (error) {
+      setMessage({ type: "error", text: error?.message || "Flyer could not be attached." });
+    } finally {
+      setAttachmentUploading(false);
+      if (flyerInputRef.current) flyerInputRef.current.value = "";
+    }
+  };
+
+  const removeFlyer = async () => {
+    if (!attachment) return;
+    setMessage({ type: "", text: "" });
+    try {
+      if (!localPreview) await deleteNewsletterAttachment(attachment.path);
+    } catch (error) {
+      setMessage({ type: "error", text: error?.message || "Flyer could not be removed." });
+      return;
+    }
+    if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+    setAttachment(null);
+    setAttachmentPreviewUrl("");
+  };
 
   const validateDraft = () => {
     if (!draft.subject.trim()) throw new Error("Add an email subject.");
@@ -88,6 +142,7 @@ export default function NewsletterAdmin({ session, localPreview, onLogout }) {
       setSending(testOnly ? "test" : "all");
       const result = await sendNewsletter({
         ...draft,
+        attachment: attachment || undefined,
         testEmail: testOnly ? session.user?.email : undefined,
       });
       setMessage({
@@ -97,6 +152,9 @@ export default function NewsletterAdmin({ session, localPreview, onLogout }) {
           : `Newsletter sent to ${result.sentCount} subscriber${result.sentCount === 1 ? "" : "s"}${result.failedCount ? ` · ${result.failedCount} failed` : ""}.`,
       });
       if (!testOnly) {
+        if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+        setAttachment(null);
+        setAttachmentPreviewUrl("");
         setDraft(EMPTY_DRAFT);
         await load();
       }
@@ -166,14 +224,51 @@ export default function NewsletterAdmin({ session, localPreview, onLogout }) {
               <label className="gallery-field"><span>Button label <small>optional</small></span><input value={draft.ctaLabel} onChange={(e) => updateDraft("ctaLabel", e.target.value)} placeholder="View School Website" maxLength="50" /></label>
               <label className="gallery-field"><span>Button URL <small>optional</small></span><input type="url" value={draft.ctaUrl} onChange={(e) => updateDraft("ctaUrl", e.target.value)} placeholder="https://elhedaya-cic.com" /></label>
             </div>
+            <div className="newsletter-flyer-field">
+              <div className="newsletter-flyer-heading">
+                <div>
+                  <span>Flyer attachment <small>optional</small></span>
+                  <p>Attach one PDF or image flyer. PDF, JPG, PNG, WEBP, or GIF · up to 10 MB.</p>
+                </div>
+                {!attachment && (
+                  <button className="newsletter-flyer-button" type="button" onClick={() => flyerInputRef.current?.click()} disabled={attachmentUploading || Boolean(sending)}>
+                    {attachmentUploading ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
+                    {attachmentUploading ? "Uploading…" : "Choose Flyer"}
+                  </button>
+                )}
+              </div>
+              <input
+                ref={flyerInputRef}
+                className="newsletter-flyer-input"
+                type="file"
+                accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
+                onChange={(event) => chooseFlyer(event.target.files?.[0])}
+              />
+              {attachment && (
+                <div className="newsletter-flyer-card">
+                  <div className={`newsletter-flyer-preview ${attachmentPreviewUrl ? "has-image" : ""}`}>
+                    {attachmentPreviewUrl ? <img src={attachmentPreviewUrl} alt="Selected newsletter flyer preview" /> : <FileText size={26} />}
+                  </div>
+                  <div className="newsletter-flyer-meta">
+                    <strong>{attachment.name}</strong>
+                    <span>{formatBytes(attachment.size)} · {attachment.contentType === "application/pdf" ? "PDF flyer" : "Image flyer"}</span>
+                    <small>This file will be attached to every newsletter email.</small>
+                  </div>
+                  <div className="newsletter-flyer-actions">
+                    <button type="button" onClick={() => flyerInputRef.current?.click()} disabled={attachmentUploading || Boolean(sending)} title="Replace flyer"><UploadCloud size={16} /></button>
+                    <button type="button" onClick={removeFlyer} disabled={attachmentUploading || Boolean(sending)} title="Remove flyer"><Trash2 size={16} /></button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="newsletter-send-actions">
-            <button className="button button-secondary" type="button" onClick={() => send(true)} disabled={Boolean(sending)}>
+            <button className="button button-secondary" type="button" onClick={() => send(true)} disabled={Boolean(sending) || attachmentUploading}>
               {sending === "test" ? <Loader2 className="spin" size={17} /> : <Mail size={17} />}
               Send Test to Me
             </button>
-            <button className="button button-gold" type="button" onClick={() => send(false)} disabled={Boolean(sending) || activeSubscribers.length === 0}>
+            <button className="button button-gold" type="button" onClick={() => send(false)} disabled={Boolean(sending) || attachmentUploading || activeSubscribers.length === 0}>
               {sending === "all" ? <Loader2 className="spin" size={17} /> : <Send size={17} />}
               Send to {activeSubscribers.length || 0} Subscribers
             </button>
@@ -190,6 +285,7 @@ export default function NewsletterAdmin({ session, localPreview, onLogout }) {
               <h4>{draft.headline || "Your newsletter headline"}</h4>
               <p>{draft.body || "Your school announcement will appear here. Keep it warm, clear, and easy for families to scan."}</p>
               {draft.ctaLabel && draft.ctaUrl && <span className="newsletter-preview-cta">{draft.ctaLabel}</span>}
+              {attachment && <div className="newsletter-preview-attachment"><Paperclip size={13} /><span>{attachment.name}</span></div>}
             </div>
             <div className="newsletter-email-preview-footer">EL Hedaya Islamic School · Clemmons Islamic Center</div>
           </div>
@@ -220,7 +316,7 @@ export default function NewsletterAdmin({ session, localPreview, onLogout }) {
             {campaigns.length ? campaigns.map((campaign) => (
               <div className="newsletter-campaign-row" key={campaign.id}>
                 <span className={`newsletter-campaign-status ${campaign.status}`}>{campaign.status === "sent" ? <CheckCircle2 size={13} /> : <Mail size={13} />}{campaign.status}</span>
-                <div><strong>{campaign.subject}</strong><span>{campaign.sent_at ? formatDateTime(campaign.sent_at) : formatDateTime(campaign.created_at)} · {campaign.sent_count || 0} sent{campaign.failed_count ? ` · ${campaign.failed_count} failed` : ""}</span></div>
+                <div><strong>{campaign.subject}</strong><span>{campaign.sent_at ? formatDateTime(campaign.sent_at) : formatDateTime(campaign.created_at)} · {campaign.sent_count || 0} sent{campaign.failed_count ? ` · ${campaign.failed_count} failed` : ""}{campaign.attachment_name ? ` · Flyer: ${campaign.attachment_name}` : ""}</span></div>
               </div>
             )) : <div className="newsletter-list-empty">No newsletters sent yet.</div>}
           </div>
@@ -240,4 +336,11 @@ function formatDate(value) {
 
 function formatDateTime(value) {
   return new Date(value).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function formatBytes(value) {
+  const bytes = Number(value || 0);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

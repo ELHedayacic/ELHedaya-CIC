@@ -2977,3 +2977,36 @@ a:focus-visible {
   .newsletter-list-heading { align-items:flex-start; flex-direction:column; }
   .newsletter-search,.newsletter-search input { width:100%; }
 }
+
+/* Newsletter flyer attachments */
+.newsletter-flyer-field { margin-top:2px; padding:15px; border:1px dashed #cfd9d3; border-radius:14px; background:#fafcfb; }
+.newsletter-flyer-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.newsletter-flyer-heading > div { min-width:0; }
+.newsletter-flyer-heading span { display:block; color:#35443d; font-size:.78rem; font-weight:800; }
+.newsletter-flyer-heading span small { color:#949c98; font-weight:600; }
+.newsletter-flyer-heading p { margin:3px 0 0; color:#8a948f; font-size:.65rem; line-height:1.45; }
+.newsletter-flyer-input { display:none; }
+.newsletter-flyer-button { min-height:36px; padding:0 12px; flex:0 0 auto; border:1px solid #cfd9d3; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; gap:7px; color:var(--green-800); background:white; font-size:.69rem; font-weight:800; }
+.newsletter-flyer-button:disabled { opacity:.55; cursor:not-allowed; }
+.newsletter-flyer-card { margin-top:13px; padding:10px; border:1px solid #dce5e0; border-radius:12px; display:grid; grid-template-columns:64px minmax(0,1fr) auto; align-items:center; gap:11px; background:white; }
+.newsletter-flyer-preview { width:64px; height:64px; border-radius:9px; display:grid; place-items:center; overflow:hidden; color:#84641f; background:#f6edda; }
+.newsletter-flyer-preview.has-image { background:#edf3ef; }
+.newsletter-flyer-preview img { width:100%; height:100%; object-fit:cover; }
+.newsletter-flyer-meta { min-width:0; display:grid; gap:2px; }
+.newsletter-flyer-meta strong { overflow:hidden; color:var(--green-950); font-size:.74rem; white-space:nowrap; text-overflow:ellipsis; }
+.newsletter-flyer-meta span { color:#78837e; font-size:.64rem; }
+.newsletter-flyer-meta small { color:#9aa29e; font-size:.6rem; }
+.newsletter-flyer-actions { display:flex; gap:6px; }
+.newsletter-flyer-actions button { width:32px; height:32px; border:1px solid #dce3df; border-radius:8px; display:grid; place-items:center; color:#64736c; background:#fbfcfb; }
+.newsletter-flyer-actions button:last-child { color:#a54747; }
+.newsletter-flyer-actions button:disabled { opacity:.45; cursor:not-allowed; }
+.newsletter-preview-attachment { margin-top:14px; max-width:100%; padding:8px 10px; border:1px solid #e3ddd0; border-radius:8px; display:flex; align-items:center; gap:7px; color:#70571f; background:#fbf6e9; font-size:.66rem; font-weight:700; }
+.newsletter-preview-attachment span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+
+@media (max-width: 640px) {
+  .newsletter-flyer-heading { align-items:flex-start; flex-direction:column; }
+  .newsletter-flyer-button { width:100%; }
+  .newsletter-flyer-card { grid-template-columns:54px minmax(0,1fr); }
+  .newsletter-flyer-preview { width:54px; height:54px; }
+  .newsletter-flyer-actions { grid-column:1 / -1; justify-content:flex-end; }
+}
