@@ -10,9 +10,12 @@ import Policies from "./components/Policies";
 import PortalCTA from "./components/PortalCTA";
 import Contact from "./components/Contact";
 import Footer from "./components/Footer";
+import NewsletterSignup from "./components/NewsletterSignup";
+import NewsletterUnsubscribePage from "./components/NewsletterUnsubscribePage";
 
 const ADMIN_PATH = "/school-gallery-admin";
 const GALLERY_PATH = "/gallery";
+const NEWSLETTER_UNSUBSCRIBE_PATH = "/newsletter/unsubscribe";
 
 function normalizedPath() {
   return window.location.pathname.replace(/\/$/, "") || "/";
@@ -23,6 +26,10 @@ export default function App() {
 
   if (path === ADMIN_PATH) {
     return <GalleryAdminPage />;
+  }
+
+  if (path === NEWSLETTER_UNSUBSCRIBE_PATH) {
+    return <NewsletterUnsubscribePage />;
   }
 
   if (path === GALLERY_PATH) {
@@ -48,6 +55,7 @@ export default function App() {
         <ScheduleFees />
         <Policies />
         <PortalCTA />
+        <NewsletterSignup />
         <Contact />
       </main>
       <Footer />

@@ -17,8 +17,10 @@ import {
   Trash2,
   Upload,
   X,
+  Mail,
 } from "lucide-react";
 import Logo from "./Logo";
+import NewsletterAdmin from "./NewsletterAdmin";
 import {
   addGalleryUrl,
   deleteGalleryImage,
@@ -121,14 +123,14 @@ export default function GalleryAdminPage() {
         <div className="container hidden-admin-shell">
           <div className="hidden-admin-title">
             <span className="admin-kicker"><ShieldCheck size={15} /> Private Administration</span>
-            <h1>School Picture Gallery</h1>
-            <p>This page is intentionally not linked anywhere on the public website.</p>
+            <h1>School Administration</h1>
+            <p>This private workspace is intentionally not linked anywhere on the public website.</p>
           </div>
 
           {!galleryBackendConfigured && !canUseLocalPreview ? (
             <div className="admin-panel admin-panel-standalone">
               <div className="gallery-alert gallery-alert-error">
-                <strong>Gallery administration is disabled.</strong>
+                <strong>School administration is disabled.</strong>
                 <span>Connect Supabase before using the admin area on a deployed website.</span>
               </div>
             </div>
@@ -137,7 +139,7 @@ export default function GalleryAdminPage() {
               <form className="admin-login" onSubmit={login}>
                 <div className="admin-lock"><LockKeyhole size={26} /></div>
                 <h4>Administrator sign in</h4>
-                <p>Only authorized EL Hedaya administrators can manage school pictures.</p>
+                <p>Only authorized EL Hedaya administrators can access school management tools.</p>
                 <label className="gallery-field"><span>Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required /></label>
                 <label className="gallery-field"><span>Password</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required /></label>
                 {authError && <div className="gallery-alert gallery-alert-error">{authError}</div>}
@@ -148,11 +150,26 @@ export default function GalleryAdminPage() {
               </form>
             </div>
           ) : (
-            <GalleryWorkspace images={images} loading={loading} session={session} localPreview={canUseLocalPreview} onRefresh={loadImages} onLogout={logout} />
+            <AdminWorkspace images={images} loading={loading} session={session} localPreview={canUseLocalPreview} onRefresh={loadImages} onLogout={logout} />
           )}
         </div>
       </section>
     </main>
+  );
+}
+
+
+function AdminWorkspace(props) {
+  const [section, setSection] = useState("gallery");
+
+  return (
+    <>
+      <div className="admin-section-tabs" role="tablist" aria-label="School administration sections">
+        <button type="button" className={section === "gallery" ? "active" : ""} onClick={() => setSection("gallery")}><Images size={17} /> Picture Gallery</button>
+        <button type="button" className={section === "newsletter" ? "active" : ""} onClick={() => setSection("newsletter")}><Mail size={17} /> Newsletter</button>
+      </div>
+      {section === "gallery" ? <GalleryWorkspace {...props} /> : <NewsletterAdmin session={props.session} localPreview={props.localPreview} onLogout={props.onLogout} />}
+    </>
   );
 }
 

@@ -23,6 +23,7 @@ export default function Footer() {
           <span>Families</span>
           <a href={PORTAL_URL}>Register Online</a>
           <a href={PORTAL_URL}>Parent Portal</a>
+          <a href="/#newsletter">Newsletter</a>
           <a href="/#contact">Contact</a>
         </div>
       </div>
